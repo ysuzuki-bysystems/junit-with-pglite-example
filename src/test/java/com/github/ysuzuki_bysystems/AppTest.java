@@ -40,6 +40,8 @@ public class AppTest extends TestCase {
             .redirectError(Redirect.INHERIT);
         Map<String, String> environment = builder.environment();
         environment.clear();
+        environment.put("HOME", System.getenv("HOME"));
+        environment.put("PATH", System.getenv("PATH"));
         environment.put("PORT", "5432");
         proc = builder.start();
 
