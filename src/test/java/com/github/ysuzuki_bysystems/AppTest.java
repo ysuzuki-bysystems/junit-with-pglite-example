@@ -110,7 +110,7 @@ public class AppTest extends TestCase {
                         && e.getCause() != null
                         && e.getCause() instanceof ConnectException) {
                     // Exponential Backoff style
-                    Thread.sleep((i * 100) + rand.nextLong(100));
+                    Thread.sleep((i * 100L) + (rand.nextLong() % 100L));
                     continue;
                 }
 
