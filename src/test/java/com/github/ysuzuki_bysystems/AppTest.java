@@ -40,6 +40,8 @@ public class AppTest extends TestCase {
             .redirectError(Redirect.INHERIT);
         Map<String, String> environment = builder.environment();
         environment.clear();
+        environment.put("HOME", System.getenv("HOME"));
+        environment.put("PATH", System.getenv("PATH"));
         environment.put("PORT", "5432");
         proc = builder.start();
 
@@ -110,7 +112,7 @@ public class AppTest extends TestCase {
                         && e.getCause() != null
                         && e.getCause() instanceof ConnectException) {
                     // Exponential Backoff style
-                    Thread.sleep((i * 100) + rand.nextLong(100));
+                    Thread.sleep((i * 100L) + Math.abs(rand.nextLong() % 100L));
                     continue;
                 }
 

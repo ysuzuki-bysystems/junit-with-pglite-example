@@ -28,5 +28,9 @@ jobs:
         java-version: '8'
         distribution: 'temurin'
         cache: maven
+    - name: Set up Deno
+      uses: denoland/setup-deno@v2
+    - run: java -version
+    - run: deno --version
     - name: Test with Maven
       run: mvn test
