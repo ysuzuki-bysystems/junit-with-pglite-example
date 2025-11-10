@@ -1,0 +1,123 @@
+package com.github.ysuzuki_bysystems;
+
+import java.io.File;
+import java.lang.ProcessBuilder.Redirect;
+import java.net.ConnectException;
+import java.net.URL;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Random;
+
+import junit.framework.TestCase;
+
+/**
+ * Unit test for simple App.
+ */
+public class AppTest extends TestCase {
+    Process proc;
+
+    Connection connection;
+
+    @Override
+    protected void setUp() throws Exception {
+        URL script = AppTest.class.getResource("./db.mts");
+        if (script == null) {
+            throw new NoSuchFieldError();
+        }
+
+        File devnull = new File("/dev/null");
+        ProcessBuilder builder = new ProcessBuilder(Paths.get(script.toURI()).toString())
+            .redirectInput(devnull)
+            .redirectOutput(devnull)
+            .redirectError(Redirect.INHERIT);
+        Map<String, String> environment = builder.environment();
+        environment.clear();
+        environment.put("PORT", "5432");
+        proc = builder.start();
+
+        try {
+            String url = "jdbc:postgresql://localhost:5432/db?sslmode=disable&password=p";
+            Properties info = new Properties();
+            info.setProperty("sslmode", "disable");
+            info.setProperty("password", "p");
+            connection = connect(url, info);
+        } catch (Exception e) {
+            proc.destroy();
+            throw e;
+        }
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        Optional<Exception> suppressed = Optional.empty();
+        try {
+            connection.close();
+        } catch (Exception e) {
+            suppressed = Optional.of(e);
+        }
+
+        proc.destroy();
+
+        if (suppressed.isPresent()) {
+            throw suppressed.get();
+        }
+    }
+
+    public void test() throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("CREATE TABLE test(val int not null)")) {
+            int c = statement.executeUpdate();
+            assertEquals(0, c);
+        }
+
+        try (PreparedStatement statement = connection.prepareStatement("INSERT INTO test VALUES (?)")) {
+            for (int i = 0; i < 10; i++) {
+                statement.setInt(1, i);
+                int c = statement.executeUpdate();
+                assertEquals(1, c);
+            }
+        }
+
+        int total = 0;
+        try (PreparedStatement statement = connection.prepareStatement("SELECT val FROM test");
+                ResultSet results = statement.executeQuery()) {
+            while (results.next()) {
+                total += results.getInt(1);
+            }
+        }
+        assertEquals(45, total);
+    }
+
+    // helper
+
+    static Connection connect(String url, Properties info)
+            throws SQLException, InterruptedException {
+        Random rand = new Random();
+
+        Driver driver = DriverManager.getDriver(url);
+        for (int i = 0; i < 10; i++) {
+            try {
+                return driver.connect(url, info);
+            } catch (Exception e) {
+                if (e instanceof SQLException
+                        && e.getCause() != null
+                        && e.getCause() instanceof ConnectException) {
+                    // Exponential Backoff style
+                    Thread.sleep((i * 100) + rand.nextLong(100));
+                    continue;
+                }
+
+                throw e;
+            }
+        }
+
+        throw new RuntimeException("FAILED TO CONNECT");
+    }
+}
