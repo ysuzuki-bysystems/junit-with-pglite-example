@@ -3,8 +3,6 @@ package com.github.ysuzuki_bysystems;
 import java.io.File;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.ConnectException;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -28,13 +26,18 @@ public class AppTest extends TestCase {
 
     @Override
     protected void setUp() throws Exception {
-        URL script = AppTest.class.getResource("./db.mts");
-        if (script == null) {
-            throw new NoSuchFieldError();
-        }
+        String[] command = new String[] {
+                "deno",
+                "run",
+                "--allow-net",
+                "--allow-read",
+                "npm:@electric-sql/pglite-socket@0.0.19",
+                "-p5432",
+                "-h127.0.0.1"
+        };
 
         File devnull = new File("/dev/null");
-        ProcessBuilder builder = new ProcessBuilder(Paths.get(script.toURI()).toString())
+        ProcessBuilder builder = new ProcessBuilder(command)
             .redirectInput(devnull)
             .redirectOutput(devnull)
             .redirectError(Redirect.INHERIT);
@@ -42,11 +45,10 @@ public class AppTest extends TestCase {
         environment.clear();
         environment.put("HOME", System.getenv("HOME"));
         environment.put("PATH", System.getenv("PATH"));
-        environment.put("PORT", "5432");
         proc = builder.start();
 
         try {
-            String url = "jdbc:postgresql://localhost:5432/db?sslmode=disable&password=p";
+            String url = "jdbc:postgresql://localhost:5432/db";
             Properties info = new Properties();
             info.setProperty("sslmode", "disable");
             info.setProperty("password", "p");
